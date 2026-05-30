@@ -98,11 +98,12 @@ bumert.Should(ptr).NotBeNil()
 bumert.Assertf(expensiveCheck(), "must hold")
 ```
 
-If the thing you want to assert is expensive or has side effects, defer it behind a closure with `TrueFn`. The closure is never called in release builds, so the work is skipped entirely:
+If the thing you want to assert is expensive or has side effects, defer it behind a closure with `TrueFn`. The closure is never called in release builds, so the work is skipped there:
 
 ```go
-bumert.Should(nil).TrueFn(func() bool {
-    return expensiveCheck() // only runs with -tags debug
+cfg := loadConfig()
+bumert.Should(cfg).TrueFn(func() bool {
+    return cfg.IsValid() // expensive; only runs with -tags debug
 })
 ```
 
