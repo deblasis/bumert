@@ -41,6 +41,9 @@ jobs:
             exit 1
           fi
 
+      - name: Check Generated Stubs
+        run: make check-generate
+
       - name: Test (Production Mode)
         run: make test
 
