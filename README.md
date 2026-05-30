@@ -83,6 +83,32 @@ To **enable** assertions, you must include the `debug` build tag:
 
 **Running/Testing without the tag** (e.g., `go test ./...` or `make test` or `go build main.go`) produces a binary where all `bumert` checks are **completely absent**.
 
+## Important: the check is free, the argument is not
+
+The "zero overhead" guarantee covers the assertion machinery itself. In a release build the calls are inlined away to nothing, including the interface boxing, so a check like `Should(ptr).NotBeNil()` compiles down to zero instructions and performs no allocations.
+
+What it does **not** do is remove the expression you pass in. Go evaluates function arguments before the call, and a no-op cannot un-evaluate them. This is different from a C-style `assert()` macro, which the preprocessor deletes entirely under `NDEBUG`. So with `bumert` the value being asserted is still computed in production:
+
+```go
+// The pointer load is free and the whole line disappears in release builds.
+bumert.Should(ptr).NotBeNil()
+
+// expensiveCheck() STILL RUNS in release builds, even though the assertion
+// itself is a no-op. Only the assertion around the result is removed.
+bumert.Assertf(expensiveCheck(), "must hold")
+```
+
+If the thing you want to assert is expensive or has side effects, defer it behind a closure with `TrueFn`. The closure is never called in release builds, so the work is skipped there:
+
+```go
+cfg := loadConfig()
+bumert.Should(cfg).TrueFn(func() bool {
+    return cfg.IsValid() // expensive; only runs with -tags debug
+})
+```
+
+Rule of thumb: pass plain values and pointers directly, and put anything costly behind `TrueFn`.
+
 ## Panic Behavior
 
 When the `debug` tag is enabled, a **failed assertion will cause a panic**. This is intentional and follows the common pattern for assertion libraries in Go (and other languages). It immediately halts execution at the point of the violated assumption during development or debugging, making issues easy to spot. The panic message includes the file and line number of the failed assertion, along with the failure reason (e.g., "Expected <foo> to be greater than <bar>").

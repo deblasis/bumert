@@ -14,7 +14,7 @@ TAGS_DEBUG := -tags debug
 GENERATOR_CMD := cmd/gen-release/main.go
 GENERATOR_BIN := gen-release
 
-.PHONY: all test test-debug fmt tidy generate build-generator help
+.PHONY: all test test-debug fmt tidy generate check-generate build-generator help
 
 all: test ## Run all tests (release mode)
 
@@ -25,6 +25,14 @@ build-generator: ## Build the release stub generator
 generate: build-generator ## Generate release stubs from debug code by running generator binary
 	@echo "Generating release stubs..."
 	./$(GENERATOR_BIN) -in bumert_debug.go
+
+check-generate: generate ## Fail if committed release stubs differ from freshly generated ones
+	@echo "Checking generated release stubs are up to date..."
+	@if ! git diff --quiet bumert_release.go; then \
+		echo "Release stubs are out of date. Run 'make generate' and commit the result."; \
+		git diff bumert_release.go; \
+		exit 1; \
+	fi
 
 test: generate ## Run tests without debug assertions (generates stubs first)
 	@echo "Running tests (release mode)..."
